@@ -16,6 +16,10 @@ import SearchBar from "@/components/SearchBar";
 import ProductFilters from "@/components/ProductFilters";
 
 import { Product } from "@/types/product";
+import {
+  getLocalProducts,
+  getDeletedProducts,
+} from "@/lib/productStorage";
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -135,8 +139,25 @@ export default function ProductsPage() {
           });
         }
 
-        let resultProducts =
-          data.products;
+        const localData = getLocalProducts();
+const deletedProducts = getDeletedProducts();
+
+let resultProducts = data.products
+  .map((product: Product) => {
+    const updatedProduct = localData.updated.find(
+      (item) => item.id === product.id
+    );
+
+    return updatedProduct || product;
+  })
+  .filter(
+    (product: Product) => !deletedProducts.includes(product.id)
+  );
+
+resultProducts = [
+  ...localData.added,
+  ...resultProducts,
+];
 
         /*
          * Client-side sorting.
@@ -351,25 +372,28 @@ export default function ProductsPage() {
       <div className="mx-auto max-w-7xl">
 
         {/* Header */}
-        <header className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">
-              Product Dashboard
-            </h1>
+       <header className="mb-6 flex flex-col gap-4 rounded-lg bg-white p-5 shadow sm:flex-row sm:items-center sm:justify-between">
+  <div>
+    <h1 className="text-2xl font-bold">Product Dashboard</h1>
+    <p className="text-gray-500">Manage your products</p>
+  </div>
 
-            <p className="text-gray-500">
-              Manage your products
-            </p>
-          </div>
+  <div className="flex gap-3">
+    <button
+      onClick={() => router.push("/products/new")}
+      className="rounded-md bg-black px-4 py-2 text-white hover:bg-gray-800"
+    >
+      + Add Product
+    </button>
 
-          <button
-            onClick={handleLogout}
-            className="rounded-md bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-          >
-            Logout
-          </button>
-        </header>
-
+    <button
+      onClick={handleLogout}
+      className="rounded-md bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+    >
+      Logout
+    </button>
+  </div>
+</header>
         {/* Search */}
         <div className="mb-4">
           <SearchBar

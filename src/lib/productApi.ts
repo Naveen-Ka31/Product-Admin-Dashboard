@@ -67,3 +67,36 @@ export const getProductById = async (id: string) => {
 
   return response.data;
 };
+
+export const addProduct = async (data: {
+  title: string;
+  description: string;
+  category: string;
+  price: number;
+  stock: number;
+}) => {
+  const response = await api.post("/products/add", data);
+
+  return response.data;
+};
+
+export const updateProduct = async (
+  id: string,
+  data: {
+    title: string;
+    description: string;
+    category: string;
+    price: number;
+    stock: number;
+  }
+) => {
+  const response = await api.put(`/products/${id}`, data);
+
+  return response.data;
+};
+
+export const deleteProduct = async (id: string) => {
+  const response = await api.delete(`/products/${id}`);
+
+  return response.data;
+};

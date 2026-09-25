@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
+import { deleteProduct } from "@/lib/productApi";
+import { saveDeletedProduct } from "@/lib/productStorage";
+
 import { getProductById } from "@/lib/productApi";
 import { Product } from "@/types/product";
-
 interface Review {
   rating: number;
   comment: string;
@@ -63,6 +65,34 @@ export default function ProductDetailsPage() {
     loadProduct();
   }, [params.id, router]);
 
+const handleDelete = async () => {
+  if (!product) {
+    return;
+  }
+
+  const confirmed = window.confirm(
+    "Are you sure you want to delete this product?"
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    await deleteProduct(String(product.id));
+
+    saveDeletedProduct(product.id);
+
+    alert("Product deleted successfully.");
+
+    router.push("/products");
+  } catch (error) {
+    console.error(error);
+
+    alert("Failed to delete product.");
+  }
+};
+
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center">
@@ -100,12 +130,30 @@ export default function ProductDetailsPage() {
       <div className="mx-auto max-w-6xl">
 
         {/* Back button */}
-        <Link
-          href="/products"
-          className="mb-6 inline-block text-sm font-medium hover:underline"
-        >
-          ← Back to Products
-        </Link>
+        <div className="mb-6 flex items-center justify-between">
+  <Link
+    href="/products"
+    className="text-sm font-medium hover:underline"
+  >
+    ← Back to Products
+  </Link>
+
+  <div className="flex gap-3">
+    <Link
+      href={`/products/${product.id}/edit`}
+      className="rounded-md bg-black px-4 py-2 text-sm text-white"
+    >
+      Edit Product
+    </Link>
+
+    <button
+      onClick={handleDelete}
+      className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
+    >
+      Delete Product
+    </button>
+  </div>
+</div>
 
         {/* Product information */}
         <section className="rounded-lg bg-white p-6 shadow">
