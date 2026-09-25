@@ -20,24 +20,26 @@ export const getProducts = async ({
   return response.data;
 };
 
-export const getProductById = async (id: string) => {
-  const response = await api.get(`/products/${id}`);
-
-  return response.data;
-};
-
 export const searchProducts = async (
   query: string,
   limit: number,
-  skip: number
-) => {
+  skip: number,
+  signal?: AbortSignal
+): Promise<ProductResponse> => {
   const response = await api.get("/products/search", {
     params: {
       q: query,
       limit,
       skip,
     },
+    signal,
   });
+
+  return response.data;
+};
+
+export const getProductById = async (id: string) => {
+  const response = await api.get(`/products/${id}`);
 
   return response.data;
 };
