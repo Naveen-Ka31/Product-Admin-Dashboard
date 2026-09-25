@@ -4,17 +4,21 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 import ProductForm from "@/components/ProductForm";
-import { saveUpdatedProduct } from "@/lib/productStorage";
+
 import {
   getProductById,
   updateProduct,
 } from "@/lib/productApi";
+
+import { saveUpdatedProduct } from "@/lib/productStorage";
 
 import { Product } from "@/types/product";
 
 export default function EditProductPage() {
   const params = useParams();
   const router = useRouter();
+
+  const id = String(params.id);
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,8 +37,6 @@ export default function EditProductPage() {
         setLoading(true);
         setError("");
 
-        const id = String(params.id);
-
         const data = await getProductById(id);
 
         setProduct(data);
@@ -47,7 +49,7 @@ export default function EditProductPage() {
     };
 
     loadProduct();
-  }, [params.id, router]);
+  }, [id, router]);
 
   const handleSubmit = async (data: {
     title: string;
@@ -57,15 +59,16 @@ export default function EditProductPage() {
     stock: number;
   }) => {
     try {
-     const updatedProduct = await updateProduct(id, data);
+      const updatedProduct = await updateProduct(id, data);
 
-    saveUpdatedProduct(updatedProduct);
+      saveUpdatedProduct(updatedProduct);
 
-    alert("Product updated successfully.");
+      alert("Product updated successfully.");
 
-    router.push(`/products/${id}`);
+      router.push(`/products/${id}`);
     } catch (error) {
       console.error(error);
+
       alert("Failed to update product.");
     }
   };
