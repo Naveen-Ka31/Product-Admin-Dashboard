@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
+
 import { Product } from "@/types/product";
 
 interface ProductTableProps {
@@ -44,7 +46,10 @@ export default function ProductTable({
               className="border-b last:border-b-0"
             >
               <td className="px-6 py-4">
-                <div className="flex items-center gap-3">
+                <Link
+                  href={`/products/${product.id}`}
+                  className="flex items-center gap-3"
+                >
                   <Image
                     src={product.thumbnail}
                     alt={product.title}
@@ -53,10 +58,10 @@ export default function ProductTable({
                     className="rounded object-cover"
                   />
 
-                  <span className="font-medium">
+                  <span className="font-medium hover:underline">
                     {product.title}
                   </span>
-                </div>
+                </Link>
               </td>
 
               <td className="px-6 py-4 capitalize">
