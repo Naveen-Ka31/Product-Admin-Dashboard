@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { getProducts } from "@/lib/productApi";
 import ProductTable from "@/components/ProductTable";
+import Pagination from "@/components/Pagination";
 import { Product } from "@/types/product";
 
 export default function ProductsPage() {
@@ -13,6 +14,10 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalProducts, setTotalProducts] = useState(0);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -27,12 +32,15 @@ export default function ProductsPage() {
         setLoading(true);
         setError("");
 
+        const skip = (currentPage - 1) * pageSize;
+
         const data = await getProducts({
-          limit: 10,
-          skip: 0,
+          limit: pageSize,
+          skip,
         });
 
         setProducts(data.products);
+        setTotalProducts(data.total);
       } catch (error) {
         console.error(error);
         setError("Failed to load products.");
@@ -42,7 +50,22 @@ export default function ProductsPage() {
     };
 
     fetchProducts();
-  }, [router]);
+  }, [router, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(totalProducts / pageSize);
+
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) {
+      return;
+    }
+
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -101,7 +124,18 @@ export default function ProductsPage() {
             No products found.
           </div>
         ) : (
-          <ProductTable products={products} />
+          <>
+            <ProductTable products={products} />
+
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              totalProducts={totalProducts}
+              onPageChange={handlePageChange}
+              onPageSizeChange={handlePageSizeChange}
+            />
+          </>
         )}
       </div>
     </main>
