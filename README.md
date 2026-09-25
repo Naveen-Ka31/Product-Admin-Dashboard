@@ -6,9 +6,8 @@ The application provides authentication, product browsing, search, filtering, so
 
 ## Live Demo
 
-**Live Application:** `PASTE_YOUR_VERCEL_URL_HERE`
+**Live Application:** `https://product-admin-dashboard-dun-six.vercel.app/login`
 
-**GitHub Repository:** `PASTE_YOUR_GITHUB_REPOSITORY_URL_HERE`
 
 ---
 
