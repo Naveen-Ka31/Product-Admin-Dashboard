@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import {
   getProducts,
@@ -19,6 +19,7 @@ import { Product } from "@/types/product";
 
 export default function ProductsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -26,32 +27,49 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [totalProducts, setTotalProducts] = useState(0);
+  /*
+   * Read initial values from URL.
+   */
+  const pageParam = Number(searchParams.get("page"));
+  const pageSizeParam = Number(
+    searchParams.get("pageSize")
+  );
 
-  const [search, setSearch] = useState("");
+  const currentPage =
+    Number.isInteger(pageParam) && pageParam >= 1
+      ? pageParam
+      : 1;
 
-  const [selectedCategory, setSelectedCategory] =
-    useState("");
+  const pageSize =
+    [10, 20, 50].includes(pageSizeParam)
+      ? pageSizeParam
+      : 10;
 
-  const [sortBy, setSortBy] = useState("");
+  const search =
+    searchParams.get("search") || "";
 
-  const [sortOrder, setSortOrder] =
-    useState("asc");
+  const selectedCategory =
+    searchParams.get("category") || "";
+
+  const sortBy =
+    searchParams.get("sort") || "";
+
+  const sortOrder =
+    searchParams.get("order") === "desc"
+      ? "desc"
+      : "asc";
+
+  const [totalProducts, setTotalProducts] =
+    useState(0);
 
   /*
-   * Load categories once
+   * Load categories.
    */
   useEffect(() => {
     const loadCategories = async () => {
       try {
         const data = await getCategories();
 
-        /*
-         * DummyJSON may return category objects
-         * depending on the API version.
-         */
         const categoryNames = data.map(
           (category: string | { slug: string }) =>
             typeof category === "string"
@@ -72,17 +90,19 @@ export default function ProductsPage() {
   }, []);
 
   /*
-   * Load products
+   * Fetch products.
    */
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token =
+      localStorage.getItem("token");
 
     if (!token) {
       router.replace("/login");
       return;
     }
 
-    const controller = new AbortController();
+    const controller =
+      new AbortController();
 
     const fetchProducts = async () => {
       try {
@@ -95,14 +115,12 @@ export default function ProductsPage() {
         let data;
 
         if (selectedCategory) {
-          /*
-           * Category has priority over search.
-           */
-          data = await getProductsByCategory(
-            selectedCategory,
-            pageSize,
-            skip
-          );
+          data =
+            await getProductsByCategory(
+              selectedCategory,
+              pageSize,
+              skip
+            );
         } else if (search.trim()) {
           data = await searchProducts(
             search.trim(),
@@ -117,37 +135,39 @@ export default function ProductsPage() {
           });
         }
 
-        let resultProducts = data.products;
+        let resultProducts =
+          data.products;
 
         /*
          * Client-side sorting.
          */
         if (sortBy) {
-          resultProducts = [...resultProducts].sort(
-            (a, b) => {
-              let comparison = 0;
+          resultProducts = [
+            ...resultProducts,
+          ].sort((a, b) => {
+            let comparison = 0;
 
-              if (sortBy === "price") {
-                comparison = a.price - b.price;
-              }
-
-              if (sortBy === "rating") {
-                comparison =
-                  a.rating - b.rating;
-              }
-
-              if (sortBy === "title") {
-                comparison =
-                  a.title.localeCompare(
-                    b.title
-                  );
-              }
-
-              return sortOrder === "asc"
-                ? comparison
-                : -comparison;
+            if (sortBy === "price") {
+              comparison =
+                a.price - b.price;
             }
-          );
+
+            if (sortBy === "rating") {
+              comparison =
+                a.rating - b.rating;
+            }
+
+            if (sortBy === "title") {
+              comparison =
+                a.title.localeCompare(
+                  b.title
+                );
+            }
+
+            return sortOrder === "asc"
+              ? comparison
+              : -comparison;
+          });
         }
 
         setProducts(resultProducts);
@@ -168,6 +188,7 @@ export default function ProductsPage() {
         }
 
         console.error(error);
+
         setError(
           "Failed to load products."
         );
@@ -178,9 +199,12 @@ export default function ProductsPage() {
       }
     };
 
-    const timer = setTimeout(() => {
-      fetchProducts();
-    }, search.trim() ? 500 : 0);
+    const timer = setTimeout(
+      () => {
+        fetchProducts();
+      },
+      search.trim() ? 500 : 0
+    );
 
     return () => {
       clearTimeout(timer);
@@ -200,6 +224,32 @@ export default function ProductsPage() {
     totalProducts / pageSize
   );
 
+  /*
+   * Update URL parameters.
+   */
+  const updateUrl = (
+    updates: Record<string, string>
+  ) => {
+    const params =
+      new URLSearchParams(
+        searchParams.toString()
+      );
+
+    Object.entries(updates).forEach(
+      ([key, value]) => {
+        if (value) {
+          params.set(key, value);
+        } else {
+          params.delete(key);
+        }
+      }
+    );
+
+    router.push(
+      `/products?${params.toString()}`
+    );
+  };
+
   const handlePageChange = (
     page: number
   ) => {
@@ -210,53 +260,56 @@ export default function ProductsPage() {
       return;
     }
 
-    setCurrentPage(page);
+    updateUrl({
+      page: String(page),
+    });
   };
 
   const handlePageSizeChange = (
     size: number
   ) => {
-    setPageSize(size);
-    setCurrentPage(1);
+    updateUrl({
+      pageSize: String(size),
+      page: "1",
+    });
   };
 
   const handleSearchChange = (
     value: string
   ) => {
-    setSearch(value);
-    setSelectedCategory("");
-    setCurrentPage(1);
+    updateUrl({
+      search: value,
+      category: "",
+      page: "1",
+    });
   };
 
   const handleCategoryChange = (
     category: string
   ) => {
-    setSelectedCategory(category);
-
-    /*
-     * DummyJSON does not support search
-     * and category filtering together.
-     *
-     * Therefore category selection clears
-     * the search.
-     */
-    setSearch("");
-
-    setCurrentPage(1);
+    updateUrl({
+      category,
+      search: "",
+      page: "1",
+    });
   };
 
   const handleSortChange = (
     value: string
   ) => {
-    setSortBy(value);
-    setCurrentPage(1);
+    updateUrl({
+      sort: value,
+      page: "1",
+    });
   };
 
   const handleSortOrderChange = (
     value: string
   ) => {
-    setSortOrder(value);
-    setCurrentPage(1);
+    updateUrl({
+      order: value,
+      page: "1",
+    });
   };
 
   const handleLogout = () => {
@@ -321,7 +374,9 @@ export default function ProductsPage() {
         <div className="mb-4">
           <SearchBar
             value={search}
-            onChange={handleSearchChange}
+            onChange={
+              handleSearchChange
+            }
           />
         </div>
 
