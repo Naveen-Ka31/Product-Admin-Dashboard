@@ -6,11 +6,14 @@ import { useRouter } from "next/navigation";
 import {
   getProducts,
   searchProducts,
+  getProductsByCategory,
+  getCategories,
 } from "@/lib/productApi";
 
 import ProductTable from "@/components/ProductTable";
 import Pagination from "@/components/Pagination";
 import SearchBar from "@/components/SearchBar";
+import ProductFilters from "@/components/ProductFilters";
 
 import { Product } from "@/types/product";
 
@@ -18,6 +21,8 @@ export default function ProductsPage() {
   const router = useRouter();
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -27,6 +32,48 @@ export default function ProductsPage() {
 
   const [search, setSearch] = useState("");
 
+  const [selectedCategory, setSelectedCategory] =
+    useState("");
+
+  const [sortBy, setSortBy] = useState("");
+
+  const [sortOrder, setSortOrder] =
+    useState("asc");
+
+  /*
+   * Load categories once
+   */
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const data = await getCategories();
+
+        /*
+         * DummyJSON may return category objects
+         * depending on the API version.
+         */
+        const categoryNames = data.map(
+          (category: string | { slug: string }) =>
+            typeof category === "string"
+              ? category
+              : category.slug
+        );
+
+        setCategories(categoryNames);
+      } catch (error) {
+        console.error(
+          "Failed to load categories:",
+          error
+        );
+      }
+    };
+
+    loadCategories();
+  }, []);
+
+  /*
+   * Load products
+   */
   useEffect(() => {
     const token = localStorage.getItem("token");
 
@@ -42,11 +89,21 @@ export default function ProductsPage() {
         setLoading(true);
         setError("");
 
-        const skip = (currentPage - 1) * pageSize;
+        const skip =
+          (currentPage - 1) * pageSize;
 
         let data;
 
-        if (search.trim()) {
+        if (selectedCategory) {
+          /*
+           * Category has priority over search.
+           */
+          data = await getProductsByCategory(
+            selectedCategory,
+            pageSize,
+            skip
+          );
+        } else if (search.trim()) {
           data = await searchProducts(
             search.trim(),
             pageSize,
@@ -60,7 +117,40 @@ export default function ProductsPage() {
           });
         }
 
-        setProducts(data.products);
+        let resultProducts = data.products;
+
+        /*
+         * Client-side sorting.
+         */
+        if (sortBy) {
+          resultProducts = [...resultProducts].sort(
+            (a, b) => {
+              let comparison = 0;
+
+              if (sortBy === "price") {
+                comparison = a.price - b.price;
+              }
+
+              if (sortBy === "rating") {
+                comparison =
+                  a.rating - b.rating;
+              }
+
+              if (sortBy === "title") {
+                comparison =
+                  a.title.localeCompare(
+                    b.title
+                  );
+              }
+
+              return sortOrder === "asc"
+                ? comparison
+                : -comparison;
+            }
+          );
+        }
+
+        setProducts(resultProducts);
         setTotalProducts(data.total);
       } catch (error) {
         if (
@@ -78,7 +168,9 @@ export default function ProductsPage() {
         }
 
         console.error(error);
-        setError("Failed to load products.");
+        setError(
+          "Failed to load products."
+        );
       } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
@@ -88,33 +180,82 @@ export default function ProductsPage() {
 
     const timer = setTimeout(() => {
       fetchProducts();
-    }, 500);
+    }, search.trim() ? 500 : 0);
 
     return () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [router, currentPage, pageSize, search]);
+  }, [
+    router,
+    currentPage,
+    pageSize,
+    search,
+    selectedCategory,
+    sortBy,
+    sortOrder,
+  ]);
 
   const totalPages = Math.ceil(
     totalProducts / pageSize
   );
 
-  const handlePageChange = (page: number) => {
-    if (page < 1 || page > totalPages) {
+  const handlePageChange = (
+    page: number
+  ) => {
+    if (
+      page < 1 ||
+      page > totalPages
+    ) {
       return;
     }
 
     setCurrentPage(page);
   };
 
-  const handlePageSizeChange = (size: number) => {
+  const handlePageSizeChange = (
+    size: number
+  ) => {
     setPageSize(size);
     setCurrentPage(1);
   };
 
-  const handleSearchChange = (value: string) => {
+  const handleSearchChange = (
+    value: string
+  ) => {
     setSearch(value);
+    setSelectedCategory("");
+    setCurrentPage(1);
+  };
+
+  const handleCategoryChange = (
+    category: string
+  ) => {
+    setSelectedCategory(category);
+
+    /*
+     * DummyJSON does not support search
+     * and category filtering together.
+     *
+     * Therefore category selection clears
+     * the search.
+     */
+    setSearch("");
+
+    setCurrentPage(1);
+  };
+
+  const handleSortChange = (
+    value: string
+  ) => {
+    setSortBy(value);
+    setCurrentPage(1);
+  };
+
+  const handleSortOrderChange = (
+    value: string
+  ) => {
+    setSortOrder(value);
     setCurrentPage(1);
   };
 
@@ -140,7 +281,9 @@ export default function ProductsPage() {
           </p>
 
           <button
-            onClick={() => window.location.reload()}
+            onClick={() =>
+              window.location.reload()
+            }
             className="rounded-md bg-black px-4 py-2 text-white"
           >
             Retry
@@ -154,6 +297,7 @@ export default function ProductsPage() {
     <main className="min-h-screen bg-gray-100 p-6">
       <div className="mx-auto max-w-7xl">
 
+        {/* Header */}
         <header className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">
@@ -173,28 +317,61 @@ export default function ProductsPage() {
           </button>
         </header>
 
-        <div className="mb-6">
+        {/* Search */}
+        <div className="mb-4">
           <SearchBar
             value={search}
             onChange={handleSearchChange}
           />
         </div>
 
+        {/* Filters */}
+        <ProductFilters
+          categories={categories}
+          selectedCategory={
+            selectedCategory
+          }
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onCategoryChange={
+            handleCategoryChange
+          }
+          onSortChange={
+            handleSortChange
+          }
+          onSortOrderChange={
+            handleSortOrderChange
+          }
+        />
+
+        {/* Products */}
         {products.length === 0 ? (
           <div className="rounded-lg bg-white p-8 text-center">
             No products found.
           </div>
         ) : (
           <>
-            <ProductTable products={products} />
+            <ProductTable
+              products={products}
+            />
 
             <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
+              currentPage={
+                currentPage
+              }
+              totalPages={
+                totalPages
+              }
               pageSize={pageSize}
-              totalProducts={totalProducts}
-              onPageChange={handlePageChange}
-              onPageSizeChange={handlePageSizeChange}
+              totalProducts={
+                totalProducts
+              }
+              onPageChange={
+                handlePageChange
+              }
+              onPageSizeChange={
+                handlePageSizeChange
+              }
             />
           </>
         )}

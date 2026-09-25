@@ -38,14 +38,32 @@ export const searchProducts = async (
   return response.data;
 };
 
-export const getProductById = async (id: string) => {
-  const response = await api.get(`/products/${id}`);
+export const getProductsByCategory = async (
+  category: string,
+  limit: number,
+  skip: number
+): Promise<ProductResponse> => {
+  const response = await api.get(
+    `/products/category/${category}`,
+    {
+      params: {
+        limit,
+        skip,
+      },
+    }
+  );
 
   return response.data;
 };
 
 export const getCategories = async () => {
   const response = await api.get("/products/categories");
+
+  return response.data;
+};
+
+export const getProductById = async (id: string) => {
+  const response = await api.get(`/products/${id}`);
 
   return response.data;
 };
