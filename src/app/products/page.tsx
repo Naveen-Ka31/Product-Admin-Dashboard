@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import {
@@ -35,19 +35,19 @@ export default function ProductsPage() {
    * Read initial values from URL.
    */
   const pageParam = Number(searchParams.get("page"));
-  const pageSizeParam = Number(
-    searchParams.get("pageSize")
-  );
+const pageSizeParam = Number(searchParams.get("pageSize"));
 
-  const currentPage =
-    Number.isInteger(pageParam) && pageParam >= 1
-      ? pageParam
-      : 1;
+const currentPage =
+  Number.isInteger(pageParam) && pageParam >= 1
+    ? pageParam
+    : 1;
 
-  const pageSize =
-    [10, 20, 50].includes(pageSizeParam)
-      ? pageSizeParam
-      : 10;
+const pageSize =
+  pageSizeParam === 10 ||
+  pageSizeParam === 20 ||
+  pageSizeParam === 50
+    ? pageSizeParam
+    : 10;
 
   const search =
     searchParams.get("search") || "";
@@ -63,9 +63,8 @@ export default function ProductsPage() {
       ? "desc"
       : "asc";
 
-  const [totalProducts, setTotalProducts] =
-    useState(0);
-
+  const [totalProducts, setTotalProducts] =useState(0);
+    const requestIdRef = useRef(0);
   /*
    * Load categories.
    */
@@ -109,6 +108,7 @@ export default function ProductsPage() {
       new AbortController();
 
     const fetchProducts = async () => {
+        const requestId = ++requestIdRef.current;
       try {
         setLoading(true);
         setError("");
@@ -191,8 +191,43 @@ resultProducts = [
           });
         }
 
-        setProducts(resultProducts);
-        setTotalProducts(data.total);
+        if (requestId !== requestIdRef.current) {
+  return;
+}
+
+setTotalProducts(data.total);
+setProducts(resultProducts);
+
+const calculatedTotalPages = Math.max(
+  1,
+  Math.ceil(data.total / pageSize)
+);
+
+if (currentPage > calculatedTotalPages) {
+  router.replace(
+    `/products?${(() => {
+      const params = new URLSearchParams(
+        searchParams.toString()
+      );
+
+      params.set(
+        "page",
+        String(calculatedTotalPages)
+      );
+
+      return params.toString();
+    })()}`
+  );
+
+  return;
+}
+
+if (requestId !== requestIdRef.current) {
+  return;
+}
+
+setProducts(resultProducts);
+
       } catch (error) {
         if (
           error instanceof Error &&
